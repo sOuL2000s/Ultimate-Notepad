@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ultimate Notepad</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>Ultimate Notepad</h1>
+            <div class="header-controls">
+                <button id="new-note-btn" class="control-btn"><i class="fas fa-plus"></i> New Note</button>
+                <input type="text" id="search-notes" placeholder="Search notes..." class="search-input">
+                <div class="theme-controls">
+                    <button id="theme-toggle-btn" class="control-btn theme-toggle-btn">
+                        <i class="fas fa-moon light-icon"></i>
+                        <i class="fas fa-sun dark-icon"></i>
+                    </button>
+                    <label for="accent-color-picker" class="sr-only">Accent Color</label>
+                    <input type="color" id="accent-color-picker" value="#007bff" class="color-picker">
+                    <label for="font-size-slider" class="sr-only">Font Size</label>
+                    <input type="range" id="font-size-slider" min="14" max="24" value="16" class="font-size-slider">
+                </div>
+            </div>
+        </header>
+
+        <aside class="sidebar">
+            <ul id="note-list" class="note-list">
+                <!-- Notes will be dynamically loaded here -->
+            </ul>
+        </aside>
+
+        <main class="editor-area">
+            <div class="toolbar">
+                <button class="tool-btn" data-command="bold" title="Bold"><i class="fas fa-bold"></i></button>
+                <button class="tool-btn" data-command="italic" title="Italic"><i class="fas fa-italic"></i></button>
+                <button class="tool-btn" data-command="underline" title="Underline"><i class="fas fa-underline"></i></button>
+                <button class="tool-btn" data-command="strikeThrough" title="Strikethrough"><i class="fas fa-strikethrough"></i></button>
+                <div class="divider"></div>
+                <button class="tool-btn" data-command="formatBlock" data-value="h1" title="Heading 1">H1</button>
+                <button class="tool-btn" data-command="formatBlock" data-value="h2" title="Heading 2">H2</button>
+                <button class="tool-btn" data-command="formatBlock" data-value="h3" title="Heading 3">H3</button>
+                <div class="divider"></div>
+                <button class="tool-btn" data-command="insertUnorderedList" title="Unordered List"><i class="fas fa-list-ul"></i></button>
+                <button class="tool-btn" data-command="insertOrderedList" title="Ordered List"><i class="fas fa-list-ol"></i></button>
+                <div class="divider"></div>
+                <button class="tool-btn" data-command="blockquote" title="Blockquote"><i class="fas fa-quote-right"></i></button>
+                <button class="tool-btn" data-command="createLink" title="Insert Link"><i class="fas fa-link"></i></button>
+                <div class="divider"></div>
+                <!-- AI & Code Tools -->
+                <button id="insert-code-btn" class="tool-btn" title="Insert Code Block"><i class="fas fa-code"></i></button>
+                <button id="beautify-text-btn" class="tool-btn" title="Intelligent Beautify/Correct"><i class="fas fa-magic"></i></button>
+                <div class="divider"></div>
+                <button id="open-find-replace-btn" class="tool-btn" title="Find/Replace"><i class="fas fa-search"></i></button>
+            </div>
+            <input type="text" id="note-title" placeholder="Note Title" class="note-title-input">
+            <div id="note-content" contenteditable="true" class="note-content-editor" role="textbox" aria-multiline="true">
+                Start typing your note here...
+            </div>
+            <button id="delete-note-btn" class="control-btn delete-btn"><i class="fas fa-trash"></i> Delete Note</button>
+        </main>
+    </div>
+    
+    <!-- Floating Chatbot Button -->
+    <button id="chatbot-toggle-btn" class="floating-btn" title="AI Assistant">
+        <i class="fas fa-robot"></i>
+    </button>
+
+    <!-- Chatbot Modal/Window -->
+    <div id="chatbot-window" class="chatbot-window hidden">
+        <div class="chatbot-header">
+            <h2>AI Assistant</h2>
+            <button id="chatbot-close-btn" class="close-btn"><i class="fas fa-times"></i></button>
+        </div>
+        <div id="chatbot-messages" class="chatbot-messages">
+            <!-- Messages will appear here -->
+        </div>
+        <div class="chatbot-input-area">
+            <textarea id="chatbot-input" placeholder="Ask the assistant..."></textarea>
+            <div class="chatbot-controls">
+                <button id="chatbot-upload-btn" class="control-btn upload-btn" title="Upload Files">
+                    <i class="fas fa-paperclip"></i>
+                </button>
+                <input type="file" id="chatbot-file-input" multiple hidden>
+                
+                <button id="chatbot-voice-btn" class="control-btn voice-btn" title="Voice Input">
+                    <i class="fas fa-microphone"></i>
+                </button>
+                
+                <button id="chatbot-send-btn" class="control-btn send-btn" title="Send Message">
+                    <i class="fas fa-paper-plane"></i> Send
+                </button>
+            </div>
+            <div id="uploaded-files-list" class="uploaded-files-list"></div>
+        </div>
+    </div>
+
+    <!-- Find/Replace Dialog -->
+    <div id="find-replace-dialog" class="dialog hidden">
+        <h3>Find & Replace</h3>
+        <input type="text" id="find-input" placeholder="Find text..." class="dialog-input">
+        <input type="text" id="replace-input" placeholder="Replace with..." class="dialog-input">
+        <div class="dialog-controls">
+            <button id="find-next-btn" class="control-btn">Find Next</button>
+            <button id="replace-one-btn" class="control-btn">Replace</button>
+            <button id="replace-all-btn" class="control-btn">Replace All</button>
+            <button id="close-find-btn" class="control-btn secondary-btn">Close</button>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

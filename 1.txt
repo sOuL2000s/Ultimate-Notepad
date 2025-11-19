@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ultimate Notepad</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>Ultimate Notepad</h1>
+            <div class="header-controls">
+                <button id="new-note-btn" class="control-btn"><i class="fas fa-plus"></i> New Note</button>
+                <input type="text" id="search-notes" placeholder="Search notes..." class="search-input">
+                <div class="theme-controls">
+                    <button id="theme-toggle-btn" class="control-btn theme-toggle-btn">
+                        <i class="fas fa-moon light-icon"></i>
+                        <i class="fas fa-sun dark-icon"></i>
+                    </button>
+                    <label for="accent-color-picker" class="sr-only">Accent Color</label>
+                    <input type="color" id="accent-color-picker" value="#007bff" class="color-picker">
+                    <label for="font-size-slider" class="sr-only">Font Size</label>
+                    <input type="range" id="font-size-slider" min="14" max="24" value="16" class="font-size-slider">
+                </div>
+            </div>
+        </header>
+
+        <aside class="sidebar">
+            <ul id="note-list" class="note-list">
+                <!-- Notes will be dynamically loaded here -->
+            </ul>
+        </aside>
+
+        <main class="editor-area">
+            <div class="toolbar">
+                <button class="tool-btn" data-command="bold" title="Bold"><i class="fas fa-bold"></i></button>
+                <button class="tool-btn" data-command="italic" title="Italic"><i class="fas fa-italic"></i></button>
+                <button class="tool-btn" data-command="underline" title="Underline"><i class="fas fa-underline"></i></button>
+                <button class="tool-btn" data-command="strikeThrough" title="Strikethrough"><i class="fas fa-strikethrough"></i></button>
+                <div class="divider"></div>
+                <button class="tool-btn" data-command="formatBlock" data-value="h1" title="Heading 1">H1</button>
+                <button class="tool-btn" data-command="formatBlock" data-value="h2" title="Heading 2">H2</button>
+                <button class="tool-btn" data-command="formatBlock" data-value="h3" title="Heading 3">H3</button>
+                <div class="divider"></div>
+                <button class="tool-btn" data-command="insertUnorderedList" title="Unordered List"><i class="fas fa-list-ul"></i></button>
+                <button class="tool-btn" data-command="insertOrderedList" title="Ordered List"><i class="fas fa-list-ol"></i></button>
+                <div class="divider"></div>
+                <button class="tool-btn" data-command="blockquote" title="Blockquote"><i class="fas fa-quote-right"></i></button>
+                <!-- Add more tools here as needed -->
+            </div>
+            <input type="text" id="note-title" placeholder="Note Title" class="note-title-input">
+            <div id="note-content" contenteditable="true" class="note-content-editor" role="textbox" aria-multiline="true">
+                Start typing your note here...
+            </div>
+            <button id="delete-note-btn" class="control-btn delete-btn"><i class="fas fa-trash"></i> Delete Note</button>
+        </main>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
+
+---------------
+
+document.addEventListener('DOMContentLoaded', () => {
+    // --- DOM Elements ---
+    const noteList = document.getElementById('note-list');
+    const newNoteBtn = document.getElementById('new-note-btn');
+    const noteTitleInput = document.getElementById('note-title');
+    const noteContentEditor = document.getElementById('note-content');
+    const deleteNoteBtn = document.getElementById('delete-note-btn');
+    const searchNotesInput = document.getElementById('search-notes');
+    const toolbarButtons = document.querySelectorAll('.tool-btn');
+    const themeToggleButton = document.getElementById('theme-toggle-btn');
+    const accentColorPicker = document.getElementById('accent-color-picker');
+    const fontSizeSlider = document.getElementById('font-size-slider');
+
+    // --- State Variables ---
+    let notes = []; // Array to store all notes
+    let activeNoteId = null; // ID of the currently selected note
+
+    // --- Utility Functions ---
+
+    // Generate a unique ID (simple timestamp-based)
+    const generateId = () => Date.now().toString();
+
+    // Save notes to LocalStorage
+    const saveNotes = () => {
+        localStorage.setItem('ultimate-notepad-notes', JSON.stringify(notes));
+    };
+
+    // Load notes from LocalStorage
+    const loadNotes = () => {
+        const storedNotes = localStorage.getItem('ultimate-notepad-notes');
+        notes = storedNotes ? JSON.parse(storedNotes) : [];
+        if (notes.length === 0) {
+            // Create a default note if none exist
+            createNote('Welcome to Ultimate Notepad!', 'Start typing your amazing notes here!');
+        }
+    };
+
+    // --- Note Management Functions ---
+
+    // Render the list of notes in the sidebar
+    const renderNoteList = (filter = '') => {
+        noteList.innerHTML = ''; // Clear existing list
+        const filteredNotes = notes.filter(note =>
+            note.title.toLowerCase().includes(filter.toLowerCase()) ||
+            note.content.toLowerCase().includes(filter.toLowerCase())
+        );
+
+        filteredNotes.forEach(note => {
+            const listItem = document.createElement('li');
+            listItem.classList.add('note-item');
+            if (note.id === activeNoteId) {
+                listItem.classList.add('active');
+            }
+            listItem.dataset.id = note.id;
+            listItem.innerHTML = `
+                <h3>${note.title.substring(0, 30) || 'Untitled'}</h3>
+                <p>${note.content.replace(/<[^>]*>?/gm, '').substring(0, 50) || 'No content'}</p>
+            `;
+            listItem.addEventListener('click', () => selectNote(note.id));
+            noteList.appendChild(listItem);
+        });
+    };
+
+    // Create a new note
+    const createNote = (title = 'New Note', content = '') => {
+        const newNote = {
+            id: generateId(),
+            title: title,
+            content: content,
+            timestamp: new Date().toISOString()
+        };
+        notes.unshift(newNote); // Add to the beginning of the array
+        saveNotes();
+        selectNote(newNote.id);
+    };
+
+    // Select a note to display in the editor
+    const selectNote = (id) => {
+        activeNoteId = id;
+        const note = notes.find(n => n.id === id);
+
+        if (note) {
+            noteTitleInput.value = note.title;
+            noteContentEditor.innerHTML = note.content;
+            noteContentEditor.focus(); // Focus the editor for immediate typing
+            // Update active class in sidebar
+            document.querySelectorAll('.note-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            const selectedItem = document.querySelector(`.note-item[data-id="${id}"]`);
+            if (selectedItem) {
+                selectedItem.classList.add('active');
+            }
+        } else {
+            // If note not found (e.g., deleted), reset editor
+            activeNoteId = null;
+            noteTitleInput.value = '';
+            noteContentEditor.innerHTML = '';
+        }
+        updateToolbarState(); // Update toolbar buttons based on selection
+        renderNoteList(searchNotesInput.value); // Re-render to highlight active
+    };
+
+    // Update the active note's content
+    const updateNote = () => {
+        if (!activeNoteId) return;
+
+        const note = notes.find(n => n.id === activeNoteId);
+        if (note) {
+            note.title = noteTitleInput.value;
+            note.content = noteContentEditor.innerHTML;
+            note.timestamp = new Date().toISOString(); // Update timestamp on change
+            saveNotes();
+            renderNoteList(searchNotesInput.value); // Re-render to update title/content preview
+        }
+    };
+
+    // Delete the active note
+    const deleteNote = () => {
+        if (!activeNoteId || !confirm('Are you sure you want to delete this note?')) return;
+
+        notes = notes.filter(n => n.id !== activeNoteId);
+        saveNotes();
+        activeNoteId = null; // Clear active note
+        noteTitleInput.value = '';
+        noteContentEditor.innerHTML = '';
+        renderNoteList(searchNotesInput.value);
+
+        // If there are other notes, select the first one, otherwise create a new default note
+        if (notes.length > 0) {
+            selectNote(notes[0].id);
+        } else {
+            createNote('Welcome to Ultimate Notepad!', 'Start typing your amazing notes here!');
+        }
+    };
+
+    // --- Rich Text Editor Functions ---
+
+    // Execute a rich text command
+    const executeCommand = (command, value = null) => {
+        document.execCommand(command, false, value);
+        noteContentEditor.focus(); // Keep focus on editor after command
+        updateToolbarState(); // Update toolbar button active states
+    };
+
+    // Update toolbar button active states (e.g., if text is bold, bold button is active)
+    const updateToolbarState = () => {
+        toolbarButtons.forEach(button => {
+            const command = button.dataset.command;
+            const value = button.dataset.value;
+
+            if (command === 'formatBlock') {
+                const parentBlock = document.queryCommandValue('formatBlock');
+                if (parentBlock && parentBlock.toLowerCase() === value) {
+                    button.classList.add('active');
+                } else {
+                    button.classList.remove('active');
+                }
+            } else {
+                if (document.queryCommandState(command)) {
+                    button.classList.add('active');
+                } else {
+                    button.classList.remove('active');
+                }
+            }
+        });
+    };
+
+    // --- Theme Customization Functions ---
+
+    // Apply stored theme settings or defaults
+    const applyThemeSettings = () => {
+        const savedTheme = localStorage.getItem('ultimate-notepad-theme') || 'light';
+        document.body.classList.toggle('dark-mode', savedTheme === 'dark');
+
+        const savedAccentColor = localStorage.getItem('ultimate-notepad-accent-color') || '#007bff';
+        document.documentElement.style.setProperty('--accent-color', savedAccentColor);
+        accentColorPicker.value = savedAccentColor;
+
+        const savedFontSize = localStorage.getItem('ultimate-notepad-font-size') || '16';
+        document.documentElement.style.setProperty('--font-size-base', `${savedFontSize}px`);
+        fontSizeSlider.value = savedFontSize;
+
+        // Calculate RGB for accent color for box-shadows
+        const hexToRgb = hex => {
+            const r = parseInt(hex.slice(1, 3), 16);
+            const g = parseInt(hex.slice(3, 5), 16);
+            const b = parseInt(hex.slice(5, 7), 16);
+            return `${r}, ${g}, ${b}`;
+        };
+        document.documentElement.style.setProperty('--accent-color-rgb', hexToRgb(savedAccentColor));
+    };
+
+    // Toggle dark/light mode
+    const toggleTheme = () => {
+        document.body.classList.toggle('dark-mode');
+        const currentTheme = document.body.classList.contains('dark-mode') ? 'dark' : 'light';
+        localStorage.setItem('ultimate-notepad-theme', currentTheme);
+    };
+
+    // Change accent color
+    const changeAccentColor = (event) => {
+        const newColor = event.target.value;
+        document.documentElement.style.setProperty('--accent-color', newColor);
+        localStorage.setItem('ultimate-notepad-accent-color', newColor);
+        // Recalculate RGB for box-shadows
+        const hexToRgb = hex => {
+            const r = parseInt(hex.slice(1, 3), 16);
+            const g = parseInt(hex.slice(3, 5), 16);
+            const b = parseInt(hex.slice(5, 7), 16);
+            return `${r}, ${g}, ${b}`;
+        };
+        document.documentElement.style.setProperty('--accent-color-rgb', hexToRgb(newColor));
+    };
+
+    // Change font size
+    const changeFontSize = (event) => {
+        const newSize = event.target.value;
+        document.documentElement.style.setProperty('--font-size-base', `${newSize}px`);
+        localStorage.setItem('ultimate-notepad-font-size', newSize);
+    };
+
+    // --- Event Listeners ---
+
+    newNoteBtn.addEventListener('click', () => createNote());
+    deleteNoteBtn.addEventListener('click', deleteNote);
+
+    // Auto-save on input/change
+    noteTitleInput.addEventListener('input', updateNote);
+    noteContentEditor.addEventListener('input', updateNote);
+
+    // Update toolbar state when selection changes in the editor
+    noteContentEditor.addEventListener('mouseup', updateToolbarState);
+    noteContentEditor.addEventListener('keyup', updateToolbarState);
+    noteContentEditor.addEventListener('focus', updateToolbarState);
+
+    // Search functionality
+    searchNotesInput.addEventListener('input', (event) => {
+        renderNoteList(event.target.value);
+    });
+
+    // Toolbar rich text commands
+    toolbarButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            const command = button.dataset.command;
+            const value = button.dataset.value || null;
+            executeCommand(command, value);
+        });
+    });
+
+    // Theme controls
+    themeToggleButton.addEventListener('click', toggleTheme);
+    accentColorPicker.addEventListener('input', changeAccentColor);
+    fontSizeSlider.addEventListener('input', changeFontSize);
+
+
+    // --- Initialization ---
+    const init = () => {
+        applyThemeSettings(); // Apply theme settings first
+        loadNotes();
+        renderNoteList();
+
+        // Select the first note or create a new one
+        if (notes.length > 0) {
+            selectNote(notes[0].id);
+        } else {
+            createNote('Welcome to Ultimate Notepad!', 'Start typing your amazing notes here!');
+        }
+    };
+
+    init();
+});
+
+------------------
+
+/* Basic Reset & Font */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    line-height: 1.6;
+    display: flex;
+    min-height: 100vh;
+    overflow: hidden; /* Prevent body scroll, content will scroll within sections */
+    transition: background-color 0.3s, color 0.3s;
+}
+
+/* CSS Variables for Theming */
+:root {
+    --bg-color-light: #f8f9fa;
+    --text-color-light: #343a40;
+    --sidebar-bg-light: #e9ecef;
+    --note-item-bg-light: #dee2e6;
+    --note-item-hover-light: #ced4da;
+    --note-item-active-light: #adb5bd;
+    --border-color-light: #c1c7ce;
+    --header-bg-light: #e2e6eb;
+    --editor-bg-light: #fff;
+    --input-bg-light: #fff;
+
+    --bg-color-dark: #2c3e50;
+    --text-color-dark: #ecf0f1;
+    --sidebar-bg-dark: #34495e;
+    --note-item-bg-dark: #49637c;
+    --note-item-hover-dark: #5c7f9f;
+    --note-item-active-dark: #7091b3;
+    --border-color-dark: #3b5368;
+    --header-bg-dark: #3c526a;
+    --editor-bg-dark: #22303e;
+    --input-bg-dark: #33475c;
+
+    /* Current Theme Variables (dynamic) */
+    --bg-primary: var(--bg-color-light);
+    --text-primary: var(--text-color-light);
+    --sidebar-bg: var(--sidebar-bg-light);
+    --note-item-bg: var(--note-item-bg-light);
+    --note-item-hover: var(--note-item-hover-light);
+    --note-item-active: var(--note-item-active-light);
+    --border-color: var(--border-color-light);
+    --header-bg: var(--header-bg-light);
+    --editor-bg: var(--editor-bg-light);
+    --input-bg: var(--input-bg-light);
+
+    --accent-color: #007bff; /* Default accent color */
+    --font-size-base: 16px; /* Default font size */
+}
+
+/* Dark Mode specific variables */
+body.dark-mode {
+    --bg-primary: var(--bg-color-dark);
+    --text-primary: var(--text-color-dark);
+    --sidebar-bg: var(--sidebar-bg-dark);
+    --note-item-bg: var(--note-item-bg-dark);
+    --note-item-hover: var(--note-item-hover-dark);
+    --note-item-active: var(--note-item-active-dark);
+    --border-color: var(--border-color-dark);
+    --header-bg: var(--header-bg-dark);
+    --editor-bg: var(--editor-bg-dark);
+    --input-bg: var(--input-bg-dark);
+}
+
+body {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: var(--font-size-base);
+}
+
+.container {
+    display: grid;
+    grid-template-areas:
+        "header header"
+        "sidebar editor";
+    grid-template-columns: 280px 1fr; /* Sidebar width, editor width */
+    grid-template-rows: auto 1fr; /* Header height, remaining height */
+    width: 100vw;
+    height: 100vh;
+}
+
+/* Header */
+.header {
+    grid-area: header;
+    background-color: var(--header-bg);
+    padding: 15px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border-color);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.header h1 {
+    font-size: 1.8em;
+    color: var(--accent-color);
+}
+
+.header-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.control-btn {
+    background-color: var(--accent-color);
+    color: white;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.2s ease, transform 0.1s ease;
+    font-size: 0.9em;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.control-btn:hover {
+    background-color: var(--accent-color); /* Darker shade */
+    filter: brightness(0.9);
+}
+.control-btn:active {
+    transform: scale(0.98);
+}
+
+.search-input {
+    padding: 8px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    background-color: var(--input-bg);
+    color: var(--text-primary);
+    font-size: 0.9em;
+    width: 180px;
+    transition: border-color 0.2s;
+}
+.search-input::placeholder {
+    color: var(--text-primary);
+    opacity: 0.7;
+}
+.search-input:focus {
+    outline: none;
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 2px rgba(var(--accent-color-rgb), 0.2);
+}
+
+.theme-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.theme-toggle-btn {
+    width: 38px;
+    height: 38px;
+    padding: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 1.2em;
+}
+
+.theme-toggle-btn .light-icon { display: none; } /* Show sun for light mode */
+.theme-toggle-btn .dark-icon { display: block; } /* Show moon for dark mode */
+
+body.dark-mode .theme-toggle-btn .light-icon { display: block; }
+body.dark-mode .theme-toggle-btn .dark-icon { display: none; }
+
+
+.color-picker {
+    width: 38px;
+    height: 38px;
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    cursor: pointer;
+    padding: 0;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    background-color: transparent;
+    overflow: hidden; /* Hide default color input border */
+}
+
+.color-picker::-webkit-color-swatch-wrapper {
+    padding: 0;
+}
+.color-picker::-webkit-color-swatch {
+    border: none;
+    border-radius: 4px;
+}
+.color-picker::-moz-color-swatch {
+    border: none;
+    border-radius: 4px;
+}
+
+.font-size-slider {
+    width: 80px;
+    height: 5px;
+    -webkit-appearance: none;
+    background: var(--border-color);
+    outline: none;
+    opacity: 0.7;
+    transition: opacity 0.2s;
+    border-radius: 3px;
+    cursor: pointer;
+}
+.font-size-slider:hover {
+    opacity: 1;
+}
+.font-size-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    background: var(--accent-color);
+    cursor: pointer;
+    box-shadow: 0 0 0 2px var(--bg-primary);
+}
+.font-size-slider::-moz-range-thumb {
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    background: var(--accent-color);
+    cursor: pointer;
+    box-shadow: 0 0 0 2px var(--bg-primary);
+    border: none;
+}
+.sr-only { /* For accessibility, visually hide labels */
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0,0,0,0);
+    border: 0;
+}
+
+/* Sidebar */
+.sidebar {
+    grid-area: sidebar;
+    background-color: var(--sidebar-bg);
+    border-right: 1px solid var(--border-color);
+    padding-top: 15px;
+    overflow-y: auto;
+    height: calc(100vh - var(--header-height, 70px)); /* Adjust for header height */
+}
+
+.note-list {
+    list-style: none;
+    padding: 0 10px;
+}
+
+.note-item {
+    background-color: var(--note-item-bg);
+    margin-bottom: 8px;
+    padding: 12px 15px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    word-break: break-word; /* Prevent long titles from breaking layout */
+}
+
+.note-item:hover {
+    background-color: var(--note-item-hover);
+}
+
+.note-item.active {
+    background-color: var(--note-item-active);
+    box-shadow: inset 3px 0 0 var(--accent-color);
+}
+
+.note-item h3 {
+    font-size: 1.1em;
+    color: var(--text-primary);
+    margin-bottom: 5px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.note-item p {
+    font-size: 0.85em;
+    color: var(--text-primary);
+    opacity: 0.8;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Editor Area */
+.editor-area {
+    grid-area: editor;
+    background-color: var(--editor-bg);
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+    position: relative;
+    overflow: hidden; /* Ensure contenteditable doesn't cause overflow */
+}
+
+.toolbar {
+    display: flex;
+    flex-wrap: wrap; /* Allow toolbar items to wrap */
+    gap: 5px;
+    padding: 10px;
+    background-color: var(--header-bg); /* Use header background for toolbar */
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    margin-bottom: 15px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.tool-btn {
+    background-color: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    padding: 8px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s, color 0.2s;
+    font-size: 0.95em;
+    min-width: 38px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.tool-btn:hover {
+    background-color: var(--note-item-hover);
+    color: var(--accent-color);
+    border-color: var(--accent-color);
+}
+
+.tool-btn.active {
+    background-color: var(--accent-color);
+    color: white;
+    border-color: var(--accent-color);
+}
+
+.divider {
+    width: 1px;
+    background-color: var(--border-color);
+    margin: 0 5px;
+}
+
+.note-title-input {
+    width: 100%;
+    padding: 12px 15px;
+    margin-bottom: 15px;
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    font-size: 1.6em;
+    font-weight: bold;
+    background-color: var(--input-bg);
+    color: var(--text-primary);
+    transition: border-color 0.2s;
+}
+.note-title-input::placeholder {
+    color: var(--text-primary);
+    opacity: 0.5;
+}
+.note-title-input:focus {
+    outline: none;
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 2px rgba(var(--accent-color-rgb), 0.2);
+}
+
+.note-content-editor {
+    flex-grow: 1; /* Take remaining space */
+    padding: 15px;
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    background-color: var(--editor-bg);
+    color: var(--text-primary);
+    font-size: 1em; /* Uses the base font size */
+    overflow-y: auto; /* Scrollable content */
+    min-height: 200px;
+    outline: none;
+    line-height: 1.7;
+}
+
+.note-content-editor:focus {
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 2px rgba(var(--accent-color-rgb), 0.2);
+}
+
+/* Style content within the contenteditable div */
+.note-content-editor h1 { font-size: 2em; margin-bottom: 0.5em; }
+.note-content-editor h2 { font-size: 1.7em; margin-bottom: 0.4em; }
+.note-content-editor h3 { font-size: 1.4em; margin-bottom: 0.3em; }
+.note-content-editor ul, .note-content-editor ol { margin-left: 25px; margin-bottom: 1em; }
+.note-content-editor li { margin-bottom: 0.5em; }
+.note-content-editor blockquote {
+    border-left: 4px solid var(--accent-color);
+    padding-left: 15px;
+    margin: 1em 0;
+    font-style: italic;
+    color: var(--text-primary);
+    opacity: 0.8;
+}
+
+.delete-btn {
+    background-color: #dc3545; /* Red color for delete */
+    margin-top: 15px;
+    align-self: flex-end; /* Align to bottom right */
+}
+.delete-btn:hover {
+    background-color: #c82333;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .container {
+        grid-template-areas:
+            "header"
+            "sidebar"
+            "editor";
+        grid-template-columns: 1fr;
+        grid-template-rows: auto 1fr 1fr; /* Header, Sidebar, Editor */
+    }
+
+    .header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+
+    .header-controls {
+        flex-wrap: wrap;
+        justify-content: center;
+        width: 100%;
+    }
+
+    .sidebar {
+        height: auto;
+        max-height: 40vh; /* Limit sidebar height on small screens */
+        border-right: none;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .editor-area {
+        min-height: 50vh; /* Ensure editor takes sufficient space */
+    }
+
+    .search-input {
+        width: 100%;
+        margin-top: 5px;
+    }
+}
+
+------------------
+
+I want this project to include all the features that Notepad++ has, and plus it'll have code recognition and correction, it'll have syntactical intelligence, and it'll have beautifying for coding and any text, so they look beautiful and distinctively unique and customizable in every possible way, and I need intelligent text beautification. These are all the things that are needed by me, and I need a chatbot which is capable of doing everything, where it'll be kind of an assistant to it, it'll also, this Notepad that I'm developing will also be able to render markdowns, so if suppose someone pastes something in markdown, it'll convert it to normal text, or like, it will understand the markdown and apply the markdown without all the background work that markdown does, all the asterisks, all the other symbolisms, syntaxes of a markdown removed, and their characteristics applied, that'll do, and everything, each and everything I just have said above must be applied to this project. So do that, and send me the updated pasteable code.
+
+I need a floating chatbot button, where when clicked it will open a chatbot, which will help the user in any way, shape, or form possible. In this chatbot, user will be able to upload multiple files, any files, any kind of files, and the user will be able to add voice typing, and the user will be able to input by writing, obviously. And the chatbot will have markdown rendering as well, and it will answer any question, any question possible for the user. So, I'm going to provide below the API key that the chatbot will use, and the model that the chatbot will use. And I want them as it is, and I want them hardcoded. No warning about hardcoded API key should be there. So, go ahead and do the work. Thank you.
+
+api_key = AIzaSyCzx6ReMk8ohPJcCjGwHHzu7SvFccJqAbA
+model = gemini-2.5-flash-preview-05-20
+
+ After everything is done, send me the complete pasteable code.
